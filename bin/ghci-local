@@ -2,6 +2,6 @@
 
 if [ -f ../smith/demo/config/smith.config ]; then
     source ../smith/demo/config/smith.config
-    export SMITH_ENDPOINT=http://localhost:20081
+    export SMITH_ENDPOINT=http://localhost:10080
 fi
 ./mafia quick -p test/test.hs
