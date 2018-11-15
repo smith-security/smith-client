@@ -2,9 +2,10 @@ module Smith.Client.Data.User (
     UserInfo (..)
   ) where
 
-import           Data.Int (Int64)
+import           Data.Text (Text)
+
 
 newtype UserInfo =
     UserInfo {
-        userInfo :: Int64
+        userInfo :: Text
       } deriving (Eq, Ord, Show)

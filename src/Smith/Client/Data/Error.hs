@@ -5,11 +5,17 @@ module Smith.Client.Data.Error (
   ) where
 
 import           Data.Text (Text)
-
+import qualified Data.ByteString.Lazy as Lazy
+import qualified Network.OAuth2.JWT.Client as OAuth2
 
 data SmithError =
     SmithApplicationError ErrorCode (Maybe ErrorMessage)
-  | SmithAuthentictionError
+  | SmithAuthorizationError ErrorCode (Maybe ErrorMessage)
+  | SmithAuthenticationError OAuth2.GrantError
+  | SmithResponseParseError Int Lazy.ByteString Text
+  | SmithStatusCodeError Int Lazy.ByteString
+  | SmithUrlParseError Text
+    deriving (Eq, Show)
 
 newtype ErrorCode =
   ErrorCode {

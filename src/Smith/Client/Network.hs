@@ -1,32 +1,45 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Smith.Client.Network (
     runRequest
+  , runRequestT
   ) where
 
+import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Trans.Bifunctor (BifunctorTrans (..))
 import           Control.Monad.Trans.Except (ExceptT (..), runExceptT)
 
+import           Data.Bifunctor (Bifunctor (..))
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
+
 import qualified Network.HTTP.Client as HTTP
+import qualified Network.HTTP.Types as  HTTP
 import qualified Network.OAuth2.JWT.Client as OAuth2
 
-import           Smith.Client.Data.Config
-import           Smith.Client.Request (Request (..))
+import           Smith.Client.Config
+import           Smith.Client.Data.Error
+import           Smith.Client.Request (Request (..), Requester (..))
+import           Smith.Client.Response (Responder (..))
 
-data NetworkError =
-    GrantNetworkError OAuth2.GrantError
-  | EndpointNetworkError Text
+runRequest :: Smith -> Request a -> IO (Either SmithError a)
+runRequest smith =
+  runExceptT .  runRequestT smith
 
-runRequest :: Smith -> Request a -> IO (Either NetworkError a)
-runRequest (Smith endpoint manager oauth2) (Request method path responder requester) = runExceptT $ do
-  req <- ExceptT . pure . first (EndpointNetworkError . Text.pack . show) $
-    HTTP.parseRequest (Text.unpack . getSmithEndpoint $ endpoint)
+runRequestT :: Smith -> Request a -> ExceptT SmithError IO a
+runRequestT (Smith endpoint manager oauth2) (Request method path responder requester) = do
+  req <- ExceptT . pure . first (SmithUrlParseError . Text.pack . show) $
+    HTTP.parseRequest (Text.unpack $ mconcat [getSmithEndpoint endpoint, "/", path])
 
-  token <- firstT GrantNetworkError $
+  token <- firstT SmithAuthenticationError . ExceptT $
     OAuth2.grant oauth2
 
   res <- liftIO $ flip HTTP.httpLbs manager . runRequester requester $
-    req { HTTP.requestHeaders = [
-        ("Authorization", mconcat ["Bearer ", getAccessToken token])
-      ] }
+    req {
+        HTTP.method = HTTP.renderStdMethod method
+      , HTTP.requestHeaders = [
+            ("Authorization", mconcat ["Bearer ", Text.encodeUtf8 . OAuth2.renderAccessToken $ token])
+          ]
+      }
 
-  ExceptT . pure . Right $
+  ExceptT . pure $
     runResponder responder res
