@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Smith.Client.Serial.Decode (
     userinfo
+  , certificate
   , errored
   , forbidden
   , parse
@@ -15,9 +16,9 @@ import qualified Data.ByteString.Lazy as Lazy
 import           Data.Text (Text)
 import qualified Data.Text as Text
 
+import           Smith.Client.Data.Certificate
 import           Smith.Client.Data.Error
 import           Smith.Client.Data.User
-
 
 
 userinfo :: Value -> Parser UserInfo
@@ -25,6 +26,12 @@ userinfo =
   Aeson.withObject "UserInfo" $ \o ->
     UserInfo
       <$> o .: "sub"
+
+certificate :: Value -> Parser Certificate
+certificate =
+  Aeson.withObject "Certificate" $ \o ->
+    Certificate
+      <$> o .: "certificate"
 
 errored :: Value -> Parser SmithError
 errored =

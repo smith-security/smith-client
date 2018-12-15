@@ -1,10 +1,14 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Smith.Client.Request (
     Request (..)
   , Requester (..)
 
   , none
+  , json
   ) where
 
+import qualified Data.Aeson as Aeson
+import           Data.Aeson (Value)
 import           Data.Text (Text)
 
 import qualified Network.HTTP.Client as HTTP
@@ -30,4 +34,21 @@ newtype Requester =
 
 none :: Requester
 none =
-  Requester id
+  Requester $ \request ->
+    request {
+        HTTP.requestHeaders = [
+            ("Accept", "application/json")
+          ]
+      }
+
+
+json :: Value -> Requester
+json value =
+  Requester $ \request ->
+    request {
+        HTTP.requestBody = HTTP.RequestBodyLBS (Aeson.encode value)
+      , HTTP.requestHeaders = [
+            ("Content-Type", "application/json")
+          , ("Accept", "application/json")
+          ]
+      }
