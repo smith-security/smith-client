@@ -16,7 +16,7 @@ import qualified Smith.Client.Serial.Decode as Decode
 
 userinfo :: Request UserInfo
 userinfo =
-  Request HTTP.GET "/userinfo"
+  Request HTTP.GET "userinfo"
     (Response.json 200 Decode.userinfo)
     Request.none
 
