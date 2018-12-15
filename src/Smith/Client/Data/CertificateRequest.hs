@@ -1,6 +1,5 @@
 module Smith.Client.Data.CertificateRequest (
-    Environment (..)
-  , Principal (..)
+    Principal (..)
   , PublicKey (..)
   , HostName (..)
   , CertificateRequest (..)
@@ -9,11 +8,8 @@ module Smith.Client.Data.CertificateRequest (
 
 import           Data.Text (Text)
 
+import           Smith.Client.Data.Environment
 
-newtype Environment =
-  Environment {
-      getEnvironment :: Text
-    } deriving (Eq, Ord, Show)
 
 newtype Principal =
   Principal {

@@ -7,9 +7,11 @@ module Smith.Client.Api (
 
 import qualified Network.HTTP.Types as HTTP
 
-import           Smith.Client.Data.User
-import           Smith.Client.Data.CertificateRequest
 import           Smith.Client.Data.Certificate
+import           Smith.Client.Data.CertificateAuthority
+import           Smith.Client.Data.CertificateRequest
+import           Smith.Client.Data.Environment
+import           Smith.Client.Data.User
 import qualified Smith.Client.Response as Response
 import           Smith.Client.Request (Request (..))
 import qualified Smith.Client.Request as Request
@@ -25,10 +27,12 @@ userinfo =
 
 issue :: CertificateRequest -> Request Certificate
 issue request =
-  Request HTTP.GET "userinfo"
+  Request HTTP.POST "issue"
     (Response.json 200 Decode.certificate)
     (Request.json $ Encode.certificateRequest request)
 
-keys :: ()
-keys =
-  ()
+keys :: Environment -> Request [AuthorityPublicKey]
+keys environment =
+  Request HTTP.GET (mconcat ["environment/public-keys/", getEnvironment environment])
+    (Response.json 200 Decode.authorityPublicKey)
+    Request.none

@@ -33,6 +33,12 @@ certificate =
     Certificate
       <$> o .: "certificate"
 
+authorityPublicKeys :: Value -> Parser [AuthorityPublicKey]
+authorityPublicKeys =
+  Aeson.withObject "AuthorityPublicKeys" $ \o ->
+    Certificate
+      <$> o .: "certificate"
+
 errored :: Value -> Parser SmithError
 errored =
   Aeson.withObject "SmithError" $ \o ->

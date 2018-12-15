@@ -8,6 +8,7 @@ import           Data.Aeson ((.=))
 import qualified Data.Aeson as Aeson
 
 import           Smith.Client.Data.CertificateRequest
+import           Smith.Client.Data.Environment
 
 
 certificateRequest :: CertificateRequest -> Aeson.Value
