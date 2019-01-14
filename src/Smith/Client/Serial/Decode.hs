@@ -2,6 +2,7 @@
 module Smith.Client.Serial.Decode (
     userinfo
   , certificate
+  , authorityPublicKeys
   , errored
   , forbidden
   , parse
@@ -16,6 +17,7 @@ import qualified Data.ByteString.Lazy as Lazy
 import           Data.Text (Text)
 import qualified Data.Text as Text
 
+import           Smith.Client.Data.CertificateAuthority
 import           Smith.Client.Data.Certificate
 import           Smith.Client.Data.Error
 import           Smith.Client.Data.User
@@ -35,9 +37,8 @@ certificate =
 
 authorityPublicKeys :: Value -> Parser [AuthorityPublicKey]
 authorityPublicKeys =
-  Aeson.withObject "AuthorityPublicKeys" $ \o ->
-    Certificate
-      <$> o .: "certificate"
+  Aeson.withObject "AuthorityPublicKeys" $ \o -> do
+    o .: "public-keys" >>= pure . fmap AuthorityPublicKey
 
 errored :: Value -> Parser SmithError
 errored =

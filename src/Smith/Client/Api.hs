@@ -34,5 +34,5 @@ issue request =
 keys :: Environment -> Request [AuthorityPublicKey]
 keys environment =
   Request HTTP.GET (mconcat ["environment/public-keys/", getEnvironment environment])
-    (Response.json 200 Decode.authorityPublicKey)
+    (Response.json 200 Decode.authorityPublicKeys)
     Request.none
