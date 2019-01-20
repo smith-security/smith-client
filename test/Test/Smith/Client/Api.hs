@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Test.Smith.Client.Api where
 
 import           Control.Monad.IO.Class (MonadIO (..))
@@ -6,8 +7,11 @@ import           Control.Monad.Trans.Except (runExceptT)
 import           Hedgehog
 
 import qualified Smith.Client as Smith
+import           Smith.Client.Data.Environment
+import           Smith.Client.Data.CertificateRequest
 
 import qualified System.Environment as Environment
+import qualified System.IO as IO
 
 prop_end_to_end :: Property
 prop_end_to_end =
@@ -19,8 +23,16 @@ prop_end_to_end =
       Just _endpoint -> do
         smith <- (=<<) evalEither . liftIO . runExceptT $
           Smith.configure
-        _userinfo <- (=<<) evalEither . liftIO $
+        userinfo <- (=<<) evalEither . liftIO $
           Smith.runRequest smith Smith.userinfo
+        liftIO . IO.print $ userinfo
+        cas <- (=<<) evalEither . liftIO $
+          Smith.runRequest smith (Smith.keys $ Environment "muppets")
+        liftIO . IO.print $ cas
+        cert <- (=<<) evalEither . liftIO $
+          Smith.runRequest smith (Smith.issue $
+            CertificateRequest (PublicKey "key") [Principal "root"] (Environment "muppets") (HostName "example"))
+        liftIO . IO.print $ cert
         success
     success
 

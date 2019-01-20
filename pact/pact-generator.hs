@@ -24,7 +24,20 @@ smith =
           Aeson.object [
               "sub" .= ("2" :: Text)
             ])
-
+     , Interaction "public-keys"
+        (Request HTTP.GET "environment/public-keys/muppets" Nothing)
+        (Response HTTP.status200 [(HTTP.hContentType, "application/json")] . Just $
+          Aeson.object [
+              "public-keys" .= [
+                    ("ssh-rsa AAAA000000== example-key.pub" :: Text)
+                  ]
+            ])
+     , Interaction "issue"
+        (Request HTTP.POST "issue" Nothing)
+        (Response HTTP.status200 [(HTTP.hContentType, "application/json")] . Just $
+          Aeson.object [
+              "certificate" .= ("ssh-rsa AAAA000000== example-key.pub" :: Text)
+            ])
     ]
 
 main :: IO ()

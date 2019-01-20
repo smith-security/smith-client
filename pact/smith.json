@@ -1,1 +1,0 @@
-{"interactions":[{"response":{"status":200,"body":{"expires_in":3600,"access_token":"test-token","token_type":"Bearer"},"headers":{"Content-Type":"application/json"}},"description":"oauth2","request":{"path":"/oauth/token","method":"POST"}}],"metadata":{"pactSpecification":{"version":"3.0.0"}},"consumer":{"name":"smith-client"},"provider":{"name":"smith"}}
