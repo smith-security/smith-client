@@ -1,21 +1,29 @@
+-- |
+-- Smith client configuration data and functions.
+--
 {-# LANGUAGE OverloadedStrings #-}
 module Smith.Client.Config (
     Smith (..)
   , SmithEndpoint (..)
+
+  , smithScopes
   , configure
   , configureWith
-  , smithScopes
+
+  , SmithConfigureError (..)
+  , renderSmithConfigureError
   ) where
 
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Control.Monad.Trans.Class (MonadTrans (..))
 import           Control.Monad.Trans.Except (ExceptT (..))
 
-import           Crypto.JWT ()
+import           Crypto.JWT (JWK)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import           Data.Aeson ((.:))
+import           Data.ByteString (ByteString)
 import qualified Data.ByteString as ByteString
 import           Data.Int (Int64)
 import           Data.Text (Text)
@@ -26,9 +34,11 @@ import qualified Network.HTTP.Client as HTTP
 import qualified Network.HTTP.Client.TLS as HTTP
 import qualified Network.OAuth2.JWT.Client as OAuth2
 
+import           Smith.Client.Data.Identity (IdentityId (..))
+
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
-import           System.FilePath ((</>))
+import           System.FilePath (FilePath, (</>))
 
 
 newtype SmithEndpoint =
@@ -36,78 +46,62 @@ newtype SmithEndpoint =
       getSmithEndpoint :: Text
     } deriving (Eq, Ord, Show)
 
-data SmithConfigureError =
-    SmithConfigureJwkNotFoundError
-  | SmithConfigureJwkNotFoundInSmithHomeError
-  | SmithConfigureJsonDecodeError
-  | SmithConfigureJwkDecodeError
-  | SmithConfigureIdentityIdDecodeError Text
+data SmithCredentialsType =
+    EnvironmentCredentials
+  | SmithHomeCredentials FilePath
+  | HomeCredentials FilePath
+  | SuppliedCredentials
     deriving (Eq, Ord, Show)
+
+data SmithCredentials =
+    SmithCredentials SmithCredentialsType IdentityId JWK
+    deriving (Eq, Ord, Show)
+
+data SmithConfigureError =
+    SmithConfigureCredentialsNotFound SmithCredentialsType
+  | SmithConfigureJsonDecodeError SmithCredentialsType
+  | SmithConfigureJwkDecodeError SmithCredentialsType
+  | SmithConfigureIdentityIdDecodeError SmithCredentialsType
+    deriving (Eq, Ord, Show)
+
+renderSmithConfigureError :: SmithConfigureError -> Text
+renderSmithConfigureError e =
+  case e of
+     SmithConfigureCredentialsNotFound t ->
+       mconcat [
+         "Smith JWK could not be located, generate a key and save it as '$HOME/.smith/credentials.json'."
+       ]
+
+    SmithConfigureJwkNotFoundInSmithHomeError ->
+      "Smith JWK could not be located, you have $SMITH_HOME set, generate a key and save it as '$SMITH_HOME/credentials.json'."
+    SmithConfigureJsonDecodeError ->
+      "Smith credentials are not valid json, please verify could not be located, you have $SMITH_HOME set, generate a key and save it as '$SMITH_HOME/credentials.json'."
+    SmithConfigureJwkDecodeError ->
+      ""
+    SmithConfigureIdentityIdDecodeError ->
+      ""
 
 data Smith =
     Smith SmithEndpoint HTTP.Manager OAuth2.Store
+
 
 smithScopes :: [OAuth2.Scope]
 smithScopes =
   [OAuth2.Scope "profile", OAuth2.Scope "ca"]
 
+
 configure :: ExceptT SmithConfigureError IO Smith
 configure = do
   liftIO (HTTP.newManager HTTP.tlsManagerSettings) >>=
-    configureWith  smithScopes
+    configureWith smithScopes
+
 
 configureWith :: [OAuth2.Scope] -> HTTP.Manager -> ExceptT SmithConfigureError IO Smith
 configureWith scopes manager = do
-  e <- liftIO $ Environment.lookupEnv "SMITH_ENDPOINT"
-  j <- liftIO $ Environment.lookupEnv "SMITH_JWK"
-  keydata <- case j of
-    Nothing -> do
-      s <- liftIO $ Environment.lookupEnv "SMITH_HOME"
-      case s of
-        Nothing -> do
-          h <- liftIO Directory.getHomeDirectory
-          ex <- liftIO . Directory.doesFileExist $ h </> ".smith" </> "credentials.json"
-          case ex of
-            False ->
-              left SmithConfigureJwkNotFoundError
-            True ->
-              liftIO . ByteString.readFile $ h </> ".smith" </> "credentials.json"
-        Just ss -> do
-          ex <- liftIO $ Directory.doesFileExist (ss </> "credentials.json")
-          case ex of
-            False ->
-              left SmithConfigureJwkNotFoundInSmithHomeError
-            True ->
-              liftIO . ByteString.readFile $ ss </> "credentials.json"
-    Just s ->
-      pure . Text.encodeUtf8 . Text.pack $ s
-
-  json <- case Aeson.decodeStrict keydata of
-    Nothing ->
-      left SmithConfigureJsonDecodeError
-    Just v ->
-      pure v
-
-  jwk <- case Aeson.decodeStrict keydata of
-    Nothing ->
-      left SmithConfigureJwkDecodeError
-    Just v ->
-      pure v
-
-  issuer <- case Aeson.parse (Aeson.withObject "JWK" $ \o -> o .: "smith.st/identity-id") json of
-    Aeson.Error msg ->
-      left . SmithConfigureIdentityIdDecodeError . Text.pack $ msg
-    Aeson.Success v ->
-      pure $ Text.pack . show $ (v :: Int64)
-
+  e <- liftIO . maybe (SmithEndpoint "https://api.smith.st") (SmithEndpoint . Text.pack) $
+    Environment.lookupEnv "SMITH_ENDPOINT"
+  SmithCredentials t issuer jwk <- readCredentials
   let
-    endpoint =
-      case e of
-        Nothing ->
-          SmithEndpoint "https://api.smith.st"
-        Just x ->
-          SmithEndpoint . Text.pack $ x
-
     token =
       OAuth2.TokenEndpoint $
         mconcat [getSmithEndpoint endpoint, "/oauth/token"]
@@ -120,10 +114,60 @@ configureWith scopes manager = do
         scopes
         (OAuth2.ExpiresIn 3600)
         []
-
   store <- lift $ OAuth2.newStore manager token claims jwk
-
   pure $ Smith endpoint manager store
+
+
+readCredentials :: ExceptT SmithConfigureError IO SmithCredentials
+readCredentials = do
+  j <- liftIO $ Environment.lookupEnv "SMITH_JWK"
+  keydata <- case j of
+    Nothing -> do
+      s <- liftIO $ Environment.lookupEnv "SMITH_HOME"
+      case s of
+        Nothing -> do
+          h <- liftIO Directory.getHomeDirectory
+          let path = h </> ".smith" </> "credentials.json"
+          readCredentialsFile (SmithHomeCredentials path) path
+        Just ss -> do
+          let path = ss </> "credentials.json"
+          readCredentialsFile (SmithHomeCredentials path) path
+    Just s ->
+      readCredentialsByteString EnvironmentCredentials . Text.encodeUtf8 . Text.pack $ s
+
+
+readCredentialsByteString :: SmithCredentialsType -> ByteString -> ExceptT SmithConfigureError IO SmithCredentials
+readCredentialsByteString t keydata =
+  json <- case Aeson.decodeStrict keydata of
+    Nothing ->
+      left SmithConfigureJsonDecodeError t
+    Just v ->
+      pure v
+
+  jwk <- case Aeson.decodeStrict keydata of
+    Nothing ->
+      left SmithConfigureJwkDecodeError t
+    Just v ->
+      pure v
+
+  issuer <- case Aeson.parse (Aeson.withObject "JWK" $ \o -> o .: "smith.st/identity-id") json of
+    Aeson.Error _msg ->
+      left . SmithConfigureIdentityIdDecodeError t
+    Aeson.Success v ->
+      pure $ IdentityId . Text.pack . show $ (v :: Int64)
+
+  pure $ SmithCredentials t issuer jwk
+
+
+readCredentialsFile :: SmithCredentialsType -> FilePath -> ExceptT SmithConfigureError IO SmithCredentials
+readCredentialsFile t path = do
+  exists <- liftIO . Directory.doesFileExist $ h </> ".smith" </> "credentials.json"
+  case exists of
+    False ->
+      left SmithConfigureCredentialsNotFoundError
+    True -> do
+      bytes <- liftIO . ByteString.readFile $ path
+      readCredentialsByteString t bytes
 
 
 left :: Monad m => x -> ExceptT x m a

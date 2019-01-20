@@ -38,6 +38,7 @@ library
     Smith.Client.Data.CertificateRequest
     Smith.Client.Data.Environment
     Smith.Client.Data.Error
+    Smith.Client.Data.Identity
     Smith.Client.Data.User
     Smith.Client.Request
     Smith.Client.Response
