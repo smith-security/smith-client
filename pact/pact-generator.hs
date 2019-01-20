@@ -18,6 +18,13 @@ smith =
             , "expires_in" .= (3600 :: Int)
             , "token_type" .= ("Bearer" :: Text)
             ])
+     , Interaction "userinfo"
+        (Request HTTP.GET "/userinfo" Nothing)
+        (Response HTTP.status200 [(HTTP.hContentType, "application/json")] . Just $
+          Aeson.object [
+              "sub" .= ("2" :: Text)
+            ])
+
     ]
 
 main :: IO ()
