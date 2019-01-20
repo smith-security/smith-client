@@ -1,0 +1,3 @@
+#!/bin/sh -eu
+
+./mafia quick -i pact -p pact/pact-generator.hs

@@ -20,17 +20,30 @@ library
   build-depends:
       aeson >= 1.0 && < 1.5
     , base >= 4.10 && < 5
+    , bytestring
     , http-client >= 0.5 && < 0.6
     , http-client-tls >= 0.2 && < 0.4
     , http-types == 0.*
     , jose == 0.7.*
     , oauth2-jwt-bearer == 0.0.*
+    , text
 
   hs-source-dirs:
     src
 
   exposed-modules:
     Smith.Client.Api
+    Smith.Client.Data.Certificate
+    Smith.Client.Data.CertificateAuthority
+    Smith.Client.Data.CertificateRequest
+    Smith.Client.Data.Environment
+    Smith.Client.Data.Error
+    Smith.Client.Data.User
+    Smith.Client.Request
+    Smith.Client.Response
+    Smith.Client.Serial.Decode
+    Smith.Client.Serial.Encode
+
 
 test-suite test
   default-language: Haskell2010
@@ -44,3 +57,19 @@ test-suite test
 
   other-modules:
     Test.Smith.Client.Api
+
+test-suite pact-generator
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: pact-generator.hs
+  hs-source-dirs: pact
+  build-depends:
+      aeson >= 1.0 && < 1.5
+    , base >= 4.10 && < 5
+    , bytestring
+    , http-types == 0.*
+    , text
+    , smith-client
+
+  other-modules:
+    Pact

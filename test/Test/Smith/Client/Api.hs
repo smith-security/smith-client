@@ -2,7 +2,7 @@
 module Test.Smith.Client.Api where
 
 import           Control.Monad.IO.Class (MonadIO (..))
-
+import           Control.Monad.Trans.Except (runExceptT)
 import           Hedgehog
 
 import qualified Smith.Client as Smith
@@ -17,8 +17,9 @@ prop_end_to_end =
       Nothing ->
         success
       Just _endpoint -> do
-        _userinfo <- (=<<) evalEither . liftIO $ do
-          smith <- Smith.configure
+        smith <- (=<<) evalEither . liftIO . runExceptT $
+          Smith.configure
+        _userinfo <- (=<<) evalEither . liftIO $
           Smith.runRequest smith Smith.userinfo
         success
     success

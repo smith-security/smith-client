@@ -1,0 +1,10 @@
+#!/bin/sh -eu
+
+if [ -f ../smith/demo/config/smith.config ]; then
+    source ../smith/demo/config/smith.config
+    export SMITH_ENDPOINT=http://localhost:30081
+fi
+
+docker run -t -p 30081:8080 -v "$(pwd)/pact:/app/pacts" pactfoundation/pact-stub-server -p 8080 -d /app/pacts
+
+./mafia quick -p test/test.hs
