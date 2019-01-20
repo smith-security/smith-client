@@ -38,7 +38,7 @@ none =
     request {
         HTTP.requestHeaders = [
             ("Accept", "application/json")
-          ]
+          ] ++ HTTP.requestHeaders request
       }
 
 
@@ -50,5 +50,5 @@ json value =
       , HTTP.requestHeaders = [
             ("Content-Type", "application/json")
           , ("Accept", "application/json")
-          ]
+          ] ++ HTTP.requestHeaders request
       }
