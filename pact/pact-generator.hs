@@ -22,5 +22,5 @@ smith =
 
 main :: IO ()
 main =
-  LazyByteString.writeFile "pact/smith.json" $
+  LazyByteString.writeFile "pact/json/smith.json" $
     serialise smith

@@ -5,6 +5,13 @@ if [ -f ../smith/demo/config/smith.config ]; then
     export SMITH_ENDPOINT=http://localhost:30081
 fi
 
-docker run -t -p 30081:8080 -v "$(pwd)/pact:/app/pacts" pactfoundation/pact-stub-server -p 8080 -d /app/pacts
+
+docker stop smith-pact || true
+docker rm smith-pact ||true
+
+docker run -d -t -p 30081:8080 -v "$(pwd)/pact/json:/app/pacts" --name smith-pact pactfoundation/pact-stub-server -p 8080 -d /app/pacts
 
 ./mafia quick -p test/test.hs
+
+docker stop smith-pact || true
+docker rm smith-pact ||true
