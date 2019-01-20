@@ -4,6 +4,7 @@ module Smith.Client.Config (
   , SmithEndpoint (..)
   , configure
   , configureWith
+  , smithScopes
   ) where
 
 import           Control.Monad.IO.Class (MonadIO (..))
@@ -15,6 +16,7 @@ import           Crypto.JWT ()
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import           Data.Aeson ((.:))
+import qualified Data.ByteString as ByteString
 import           Data.Int (Int64)
 import           Data.Text (Text)
 import qualified Data.Text as Text
@@ -24,7 +26,9 @@ import qualified Network.HTTP.Client as HTTP
 import qualified Network.HTTP.Client.TLS as HTTP
 import qualified Network.OAuth2.JWT.Client as OAuth2
 
+import qualified System.Directory as Directory
 import qualified System.Environment as Environment
+import           System.FilePath ((</>))
 
 
 newtype SmithEndpoint =
@@ -34,6 +38,7 @@ newtype SmithEndpoint =
 
 data SmithConfigureError =
     SmithConfigureJwkNotFoundError
+  | SmithConfigureJwkNotFoundInSmithHomeError
   | SmithConfigureJsonDecodeError
   | SmithConfigureJwkDecodeError
   | SmithConfigureIdentityIdDecodeError Text
@@ -42,18 +47,38 @@ data SmithConfigureError =
 data Smith =
     Smith SmithEndpoint HTTP.Manager OAuth2.Store
 
+smithScopes :: [OAuth2.Scope]
+smithScopes =
+  [OAuth2.Scope "profile", OAuth2.Scope "ca"]
+
 configure :: ExceptT SmithConfigureError IO Smith
 configure = do
   liftIO (HTTP.newManager HTTP.tlsManagerSettings) >>=
-    configureWith
+    configureWith  smithScopes
 
-configureWith :: HTTP.Manager -> ExceptT SmithConfigureError IO Smith
-configureWith manager = do
+configureWith :: [OAuth2.Scope] -> HTTP.Manager -> ExceptT SmithConfigureError IO Smith
+configureWith scopes manager = do
   e <- liftIO $ Environment.lookupEnv "SMITH_ENDPOINT"
   j <- liftIO $ Environment.lookupEnv "SMITH_JWK"
   keydata <- case j of
-    Nothing ->
-      left SmithConfigureJwkNotFoundError
+    Nothing -> do
+      s <- liftIO $ Environment.lookupEnv "SMITH_HOME"
+      case s of
+        Nothing -> do
+          h <- liftIO Directory.getHomeDirectory
+          ex <- liftIO . Directory.doesFileExist $ h </> ".smith" </> "credentials.json"
+          case ex of
+            False ->
+              left SmithConfigureJwkNotFoundError
+            True ->
+              liftIO . ByteString.readFile $ h </> ".smith" </> "credentials.json"
+        Just ss -> do
+          ex <- liftIO $ Directory.doesFileExist (ss </> "credentials.json")
+          case ex of
+            False ->
+              left SmithConfigureJwkNotFoundInSmithHomeError
+            True ->
+              liftIO . ByteString.readFile $ ss </> "credentials.json"
     Just s ->
       pure . Text.encodeUtf8 . Text.pack $ s
 
@@ -69,11 +94,7 @@ configureWith manager = do
     Just v ->
       pure v
 
-  let
-    extractor =
-      Aeson.withObject "JWK" $ \o -> o .: "smith.st/identity-id"
-
-  issuer <- case Aeson.parse extractor json of
+  issuer <- case Aeson.parse (Aeson.withObject "JWK" $ \o -> o .: "smith.st/identity-id") json of
     Aeson.Error msg ->
       left . SmithConfigureIdentityIdDecodeError . Text.pack $ msg
     Aeson.Success v ->
@@ -96,7 +117,7 @@ configureWith manager = do
         (OAuth2.Issuer issuer)
         Nothing
         (OAuth2.Audience "https://smith.st")
-        [OAuth2.Scope "profile", OAuth2.Scope "ca"] -- FIX
+        scopes
         (OAuth2.ExpiresIn 3600)
         []
 
