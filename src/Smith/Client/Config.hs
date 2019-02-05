@@ -239,6 +239,6 @@ renderSmithConfigureError e =
       mconcat ["Smith credentials do not contain a valid identity and could not be decoded. ", renderSmithCredentialsType t]
 
 
-left :: Monad m => x -> ExceptT x m a
+left :: Applicative m => x -> ExceptT x m a
 left =
   ExceptT . pure . Left

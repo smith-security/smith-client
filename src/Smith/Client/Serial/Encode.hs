@@ -20,5 +20,5 @@ certificateRequest request =
       "public-key" .= (getPublicKey $ certificateRequestPublicKey request)
     , "principals" .= (getPrincipal <$> certificateRequestPrincipals request)
     , "environment" .= (getEnvironment $ certificateRequestEnvironment request)
-    , "host-name" .= (getHostName $ certificateRequestHostName request)
+    , "host-name" .= (getHostName <$> certificateRequestHostName request)
     ]
