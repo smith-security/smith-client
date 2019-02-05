@@ -34,5 +34,5 @@ data CertificateRequest =
       certificateRequestPublicKey :: PublicKey
     , certificateRequestPrincipals :: [Principal]
     , certificateRequestEnvironment :: Environment
-    , certificateRequestHostName :: HostName
+    , certificateRequestHostName :: Maybe HostName
     } deriving (Eq, Ord, Show)
