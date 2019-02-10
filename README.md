@@ -59,3 +59,7 @@ The simplest way to develop this library is working against the
 # Configures and starts a docker container with API stubs.
 /bin/ghci-stub
 ```
+
+### Builds
+
+[![CircleCI](https://circleci.com/gh/smith-security/smith-client.svg?style=svg)](https://circleci.com/gh/smith-security/smith-client)
