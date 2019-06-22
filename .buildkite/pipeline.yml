@@ -6,8 +6,8 @@ steps:
           config: '.buildkite/docker-compose.yml'
     command:
       - 'aws s3 cp s3://smith-artefacts/cache/smith-client-cache.tar.gz smith-client-cache.tar.gz || true'
-      - 'tar xfz openssh-protcol-cache.tar.gz -C /root || true'
-      - 'rm -f openssh-protcol-cache.tar.gz'
+      - 'tar xfz smith-client-cache.tar.gz -C /root || true'
+      - 'rm -f smith-client-cache.tar.gz'
       - 'mafia update'
       - 'mafia build'
       - 'tar cfz smith-client-cache.tar.gz -C /root .mafia .cabal'
